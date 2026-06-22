@@ -105,19 +105,53 @@ Contracts should be the source of truth for system interoperability.
 
 ### Broker
 
-The broker provides communication infrastructure.
+The broker provides communication infrastructure and is the control plane of the platform.
 
-Current implementation is expected to use Zenoh.
+Current implementation uses Zenoh as the underlying transport.
 
-Responsibilities include:
+The broker operates as a **control plane / data plane** split:
 
-* Discovery
-* Routing
-* Message transport
-* Identity
-* Connectivity
+* **Control plane (broker):** identity, access control, registry, session negotiation — low frequency, latency-tolerant
+* **Data plane (P2P):** commands, telemetry, video — high frequency, latency-critical, broker not in the path
+
+The broker is responsible for:
+
+* Robot and operator registration
+* Identity and authentication
+* Access control — which operators may connect to which robots
+* Session establishment — negotiating and authorizing P2P connections
+* WireGuard key exchange — distributing peer configs when a session is established
+
+Once a session is established, operator and robot communicate directly over an encrypted WireGuard tunnel. The broker is not involved in the hot path.
 
 Higher-level services should not depend directly on Zenoh-specific concepts whenever possible.
+
+#### Internal structure
+
+```
+broker/
+├── registry/    ← robot and operator registry, capabilities, availability
+├── auth/        ← identity, permissions, ACL
+└── session/     ← connection negotiation, WireGuard key exchange
+```
+
+#### Encryption
+
+End-to-end encryption on the data plane is provided by WireGuard.
+
+Encryption is handled at the network layer. Application code (Zenoh, control, telemetry) is unaware of it. The broker provisions WireGuard keypairs and distributes peer configuration during session establishment.
+
+#### Deployment
+
+The broker is deployment-agnostic. The same binary runs in all environments. Topology differences are configuration only.
+
+| Environment | Discovery | Auth | Notes |
+|---|---|---|---|
+| Local / laptop | Zenoh multicast scouting | Off | Developer setup, no certificates |
+| Site LAN | Zenoh router at known IP | Lightweight (token) | No internet required |
+| Cloud | Internet-facing Zenoh router | Full (mTLS + ACL) | Remote operation |
+
+Deployment-specific configuration lives in `deployment/`.
 
 ---
 

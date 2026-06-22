@@ -2,6 +2,7 @@
 
 ## Planned upper level project structure ##
 
+```text
 silverback
 ├── README.md
 ├── agents
@@ -15,6 +16,7 @@ silverback
 ├── robot
 ├── simulation
 └── tools
+```
 
 
 ```text

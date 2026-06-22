@@ -1,0 +1,12 @@
+# Bazel
+bazel-*
+
+# Editor files
+.vscode/
+.idea/
+
+# C++ build artifacts from non-Bazel tools
+*.o
+*.a
+*.so
+*.dylib
