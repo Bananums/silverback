@@ -1,2 +1,5 @@
 
 bazel_dep(name = "rules_cc", version = "0.2.19")
+
+# Zenoh
+bazel_dep(name = "zenoh-cpp", version = "1.7.2.bcr.1")
