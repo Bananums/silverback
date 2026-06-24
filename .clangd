@@ -3,3 +3,4 @@ CompileFlags:
 
 Diagnostics:
   UnusedIncludes: None
+  Suppress: [err_defaulted_special_member_copy_const_param]
