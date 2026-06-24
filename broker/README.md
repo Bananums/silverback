@@ -1,3 +1,12 @@
+# Broker #
+
+## Broker design idea ##
+
+* Station A connects to broker
+* Broker responds with which Robots are available, e.g. Robot 1, 4 and 6 for that station/operator
+* Station selects Robot 4 from list
+* Broker sets up session with peer-2-peer networking between station A and Robot 4
+
 Use well-known pattern called control plane / data plane separation:
 
 Control plane (broker): identity, auth, registry, session negotiation — low frequency, latency-tolerant

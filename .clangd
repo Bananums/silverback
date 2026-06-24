@@ -1,0 +1,5 @@
+CompileFlags:
+  Remove: [-fno-canonical-system-headers]
+
+Diagnostics:
+  UnusedIncludes: None

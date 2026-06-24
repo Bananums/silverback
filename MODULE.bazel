@@ -3,3 +3,23 @@ bazel_dep(name = "rules_cc", version = "0.2.19")
 
 # Zenoh
 bazel_dep(name = "zenoh-cpp", version = "1.7.2.bcr.1")
+
+
+### Source code auto complete compile commands generation ###
+
+# Kiron1's Compile Commands Extractor for Bazel
+# https://github.com/kiron1/bazel-compile-commands/releases
+# 1. Build the binary and enter bazel-compile-commands/bazel-bin/bcc from build
+# 2. Copy to bin to allow usage: sudo cp bazel-compile-commands /usr/local/bin/
+# 3. Inside a Bazel workspace run: bazel-compile-commands
+
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+# TODO(Bananums) Still need to finish setting this up
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "0e990032f3c5a866e72615cf67e5ce22186dcb97",
+    # bazel run @hedron_compile_commands//:refresh_all
+)
