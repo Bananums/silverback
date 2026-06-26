@@ -1,0 +1,6 @@
+verbose=0
+arguments=1
+bazel-command=bazel
+output=%workspace%/compile_commands.json
+
+replace=-fno-canonical-system-headers=

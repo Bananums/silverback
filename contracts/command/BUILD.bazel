@@ -1,0 +1,12 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "command",
+    hdrs = [
+        "joint.h",
+        "twist.h",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+)
