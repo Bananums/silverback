@@ -39,3 +39,30 @@ provides only a HAL implementation — everything above it is included.
 
 **Deployment agnosticism** — topology differences (local LAN, site network, cloud)
 are configuration, not code. The same binaries run in all environments.
+
+
+## Control Plane vs Data Plane
+
+Your mental model is almost exactly right. It is a triangle — but the three sides carry very different things:
+
+```text
+        Operator
+        /      \
+       /        \
+   [control]  [data plane]
+   [heartbeat] [commands]
+     /          [telemetry]
+    /            [video]
+   /              [safety watchdog]
+ Broker ——————— Robot
+      [control]
+      [heartbeat]
+
+```
+* **Operator ↔ Broker** — control plane only. Session requests, heartbeat, state updates. Thin channel.
+* **Robot ↔ Broker** — control plane only. Registration, heartbeat, availability updates. Thin channel.
+* **Operator ↔ Robot** — data plane P2P over WireGuard. Commands, telemetry, video, safety watchdog. This is the fat, latency-critical channel. The broker provisioned it but is completely absent from it.
+
+The broker sides of the triangle stay alive after the session is established, but they are just heartbeats. The broker is not involved in anything that happens on the operator-robot link. If the broker went down mid-session, the P2P link would keep running, the session would continue until the next heartbeat timeout.
+
+That is actually the robustness property. In a teleoperation system, the control plane going down should drop an active session.
