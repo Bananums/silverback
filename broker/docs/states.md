@@ -67,7 +67,6 @@ it by refusing session requests until `recovered` is signalled.
 
 There is no terminal state. `disconnected` is always recoverable.
 
-
 ---
 
 ### Operator State
@@ -80,6 +79,38 @@ There is no terminal state. `disconnected` is always recoverable.
 - **`disconnected`** — Operator connection lost.
 
 See [operator-states.drawio](operator-states.drawio)
+
+![Robot state machine](operator-states.svg)
+
+#### Lifecycle
+
+The broker maintains one state machine instance per operator, created at `unregistered`
+on first contact. The lifecycle mirrors the robot's but reflects that operators are
+client applications, not physical devices.
+
+`connected` is the operator equivalent of the robot's `registered`. The operator has
+authenticated with the broker but has not yet signalled readiness. The naming differs
+deliberately: robots register hardware identity and capabilities; operators simply
+connect and authenticate. `ready_signal` advances the operator to `available` in both
+cases.
+
+`requesting` is the operator's unique waiting state. It exists between submitting a
+session request and the broker resolving it. The broker is running ACL checks (Access Control Lists) and
+coordinating with the robot. A denial returns the operator to `available` via
+`session_denied`, which is a normal policy outcome, not a failure. The operator can
+immediately request a different robot or retry.
+
+There is no `unavailable` state. Operators do not enter maintenance or recovery modes.
+An operator is either connected and participating, or disconnected.
+
+`heartbeat_timeout` applies symmetrically: if the broker stops receiving keep-alives
+from the operator client, it treats the operator as disconnected. This mirrors the
+robot heartbeat, both sides of a session are held to the same liveness contract.
+
+`disconnected` → `connected` on `reconnected`, the broker remembers the operator and
+skips `unregistered` on reconnect, same as the robot.
+
+There is no terminal state. `disconnected` is always recoverable.
 
 ---
 
@@ -95,6 +126,42 @@ See [operator-states.drawio](operator-states.drawio)
 See [session-states.drawio](session-states.drawio)
 
 ![Session state machine](session-states.svg)
+
+#### Lifecycle
+
+The session state machine is a joint entity, it represents the relationship between
+one operator and one robot, not either participant individually. A new instance is
+created for each session request and destroyed at a terminal state. Unlike robot and
+operator instances which persist across reconnections, there is no recovery from a
+terminal session state, a new request creates a new instance.
+
+The session does not exist until ACL clears. `requested` is the entry point, and
+`acl_check_passed` is the first gate. A denial at this stage goes directly to
+`terminated failure`, there is nothing to tear down.
+
+`negotiating` is the only phase where the broker is actively in the data path.
+WireGuard key exchange and P2P link configuration happen here. The broker is
+coordinating between robot and operator and holds the session open until keys are
+exchanged.
+
+`established` means the P2P link is configured but not yet confirmed live. The broker
+hands off key material and waits for both sides to confirm the link is up. If
+confirmation never arrives, `link_timeout` terminates the session.
+
+`active` is the steady state. The broker exits the data path entirely — robot and
+operator communicate P2P. The broker still holds the session record and monitors
+liveness via control plane heartbeats. `heartbeat_timeout` here means the broker has
+lost sight of one or both participants, not that the data link has failed.
+
+`terminating` exists because graceful shutdown takes time. Both sides must
+acknowledge, clean up WireGuard configuration, and confirm teardown. It is a
+time-boxed state: `termination_timeout` moves to `terminated failure` if teardown
+stalls, preventing the session from hanging indefinitely.
+
+The two terminal states carry different policy weight. `terminated planned` signals a
+clean end, reconnection attempts can be accepted immediately. `terminated failure`
+signals something broke, policy may enforce a cooldown, trigger an alert, or require
+operator acknowledgement before a new session to the same robot is allowed.
 
 ## Paths ##
 
