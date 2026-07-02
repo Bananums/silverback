@@ -3,7 +3,7 @@ Docs describing the design and architecture of the broker system... TODO fill ou
 
 ## Current Development State ##
 
-Good foundation, but it has two significant gaps: the states are modeled as linear sequences when they should be graphs with branches, and the failure paths are completely absent. Here's what needs to be added:
+Comment: Good foundation, but it has two significant gaps: the states are modeled as linear sequences when they should be graphs with branches, and the failure paths are completely absent. Here's what needs to be added:
 
 Missing states:
 
@@ -34,6 +34,7 @@ are in the accompanying drawio files.
 ### Robot State
 
 - **`unregistered`** — Broker has no record of this robot.
+    - sldkf
 - **`registered`** — Robot has authenticated and announced itself. Not yet accepting sessions.
 - **`available`** — Robot is ready and accepting session requests.
 - **`unavailable`** — Robot is reachable but not accepting sessions. Driven by the robot itself (e.g. internal recovery, maintenance mode).
@@ -41,6 +42,31 @@ are in the accompanying drawio files.
 - **`disconnected`** — Robot was previously known but heartbeat has timed out.
 
 See [robot-states.drawio](robot-states.drawio)
+
+![Robot state machine](robot-states.svg)
+
+#### Lifecycle
+
+The broker maintains one state machine instance per robot. A new instance starts at
+`unregistered` the first time the broker sees a robot, either on broker startup (no persistence gap) or on the first ever connection from a previously unknown robot ID.
+
+`unregistered` is only reachable as an entry point. Once a robot transitions to
+`registered`, it never returns to `unregistered` for the lifetime of that broker
+instance. If the broker restarts without persistence, all instances are lost and
+robots must re-register from scratch.
+
+`disconnected` and `unregistered` are distinct: `disconnected` means the broker
+still has a record of the robot but its heartbeat has timed out. Reconnection takes
+the robot to `registered`, not back to `unregistered`, because the broker
+remembers it. This distinction matters for policy: a reconnecting robot can skip
+any one-time provisioning steps.
+
+`unavailable` is robot-driven. The broker does not impose it; the robot signals it
+(e.g. entering an internal recovery routine or maintenance mode). The broker honors
+it by refusing session requests until `recovered` is signalled.
+
+There is no terminal state. `disconnected` is always recoverable.
+
 
 ---
 
@@ -67,3 +93,23 @@ See [operator-states.drawio](operator-states.drawio)
 - **`terminated`** — Session has ended. Final state.
 
 See [session-states.drawio](session-states.drawio)
+
+![Session state machine](session-states.svg)
+
+## Paths ##
+
+the robot and opeartor states kind of lives by themselves they they are driven by and can drive the session state
+
+Happy path:
+```text
+Robot:    [available] ————————————— [in_session] ————————— [available]
+Session:             [requested] → [negotiating] → [active] → [terminated]
+Operator: [available] ————————————— [in_session] ————————— [available]
+```
+
+Robot disconnects during active session:
+```text
+Robot:    [in_session] → [disconnected] ——→ [registered] → [available]
+Session:  [active]     → [failed]
+Operator: [in_session] → [available]   (failure policy triggers)
+```
